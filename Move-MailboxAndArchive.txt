@@ -1,0 +1,38 @@
+#Make sure that there is enough space on log and database disks before running the script.. or circular logging.
+
+#Find smallest and largest DB's by storage space
+$smallestADB = Get-MailboxDatabase -Status | where {$_.name -like "adb0*"} | sort-object databasesize  | select -expandproperty name -first 1
+$smallestMDB = Get-MailboxDatabase -Status | where {$_.name -like "db00*"} | sort-object databasesize  | select -expandproperty name -first 1
+$largestMDB = Get-MailboxDatabase -Status | where {$_.name -like "db00*"} | sort-object databasesize -Descending | select -expandproperty name -first 1
+
+#List all mailboxes
+$MBX = Get-Mailbox -ResultSize Unlimited
+
+
+#Old archive databases scheduled for removal, archive mailboxes located in normal mailbox databases, normal mailboxes located in archive mailbox databases. redistMove should redistribute mbx across databases
+$oldMove = $MBX | where {$_.archivedatabase -like "arkdb0*"} | select -expandproperty samaccountname
+$archiveMove = $MBX| where {$_.archivedatabase -like "db00*"} | select -expandproperty samaccountname
+$normalMove = $MBX| where {$_.database -like "adb0*"} | select -expandproperty samaccountname
+$redistMove = $MBX | where {($_.database -eq "$largestMDB")} | select -first 50
+
+#Move mailboxes and archive mailboxes
+foreach ($mailbox in $oldMove) {Get-Mailbox $mailbox | New-MoveRequest -ArchiveOnly -ArchiveTargetDatabase $smallestADB}
+foreach ($mailbox in $archiveMove) {Get-Mailbox $mailbox | New-MoveRequest -ArchiveOnly -ArchiveTargetDatabase $smallestADB}
+foreach ($mailbox in $normalMove) {Get-Mailbox $mailbox | New-MoveRequest -PrimaryOnly -TargetDatabase $smallestMDB}
+foreach ($mailbox in $redistMove) {Get-Mailbox $mailbox | New-MoveRequest -PrimaryOnly -TargetDatabase $smallestMDB}
+#
+Get-MoveRequest -MoveStatus completed | Remove-MoveRequest
+
+#Update the databases to show all disconnected mailboxes
+Get-MailboxDatabase | Clean-MailboxDatabase
+#List all disconnected mailboxes in a database and display DisconnectReason if its SoftDeleted or Disabled
+Get-MailboxStatistics -Database "Database" | Where-Object {$_.DisconnectDate -Notlike $NULL} | Format-Table DisplayName, DisconnectDate, MailboxGuid, DisconnectReason –Wrap
+#Remove all SoftDeleted disconnected mailboxes from a Database
+$Mailboxes = Get-MailboxStatistics -Database "database" | where {$_.DisconnectReason -eq “SoftDeleted”} 
+$Mailboxes | foreach {Remove-StoreMailbox -Database $_.database -Identity $_.mailboxguid -MailboxState SoftDeleted -Confirm:$false}
+
+#get DB statistics
+. C:\Scripts\xhovhan_systemstatus\Get-Exchange-DatbaseStatistics.ps1
+$statistics = Get-DatabaseStatistics
+
+

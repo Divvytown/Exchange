@@ -1,0 +1,11 @@
+#slett content på alle
+$all = get-mailbox * -ResultSize unlimited
+foreach ($mbx in $all) {search-mailbox -Identity $mbx -SearchQuery '"http://webmail211.form2pay.com/181322.html"' -TargetMailbox "xhovhan@jbv.no" -TargetFolder "FullPSPAM" -LogLevel Full -searchdumpster -DeleteContent -force}
+
+#test mot 1 bruker
+$all2 = get-mailbox mlr
+foreach ($mbx in $all2) {search-mailbox -Identity $mbx -SearchQuery "SenderAddress:Belinda.Allgulander@jarfalla.se" -TargetMailbox "xhovhan@jbv.no" -TargetFolder "FullPostboks" -LogLevel Full -searchdumpster}
+
+
+$all = get-mailbox * -ResultSize unlimited
+foreach ($mbx in $all) {search-mailbox -Identity $mbx -SearchQuery 'Subject:"Posten: Du har uforloste pakken"' -TargetMailbox "xhovhan@jbv.no" -TargetFolder "1612" -LogLevel Full -searchdumpster -DeleteContent -force -StartDate "12/10/2015"}

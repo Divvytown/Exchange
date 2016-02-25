@@ -1,0 +1,3 @@
+New-MailboxDatabase -Recovery -Name recoveryadb002 -Server oslmsg015 -EdbFilePath r:\db\recoveryadb002.edb -LogFolderPath R:\log
+Mount-Database recoveryadb002
+get-mailbox xwarkje | % {New-MailboxRestoreRequest -SourceDatabase recoveryadb002 -SourceStoreMailbox $_.archiveguid -TargetMailbox Hans.Kristian.Hovland.Testbruker@jbv.no -TargetRootFolder XWARKJEARKIV -TargetIsArchive -AllowLegacyDNMismatch}
